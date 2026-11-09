@@ -3,16 +3,16 @@ Data Preparation & Step 0 Feasibility Audit:
 1. Lesson-Sentence Extraction:
    - Evaluates the whole last sentence of each story.
    - Anchors regex triggers to filter lesson-containing stories:
-     r"^(?:The moral of the story is|Moral:|From that day on|He learned that|She learned that|They learned that|It is important to|Always remember to)\b"
+     r"^(?:The moral|Moral:|From that day|He learned|She learned|They learned|It is important|Always remember|Never forget|He realized|She realized|They realized|He understood|She understood|The lesson|That is why)\b"
    - Completely excises the last sentence from the prompt:
      prompt = "Story: " + story_without_last_sentence + "\\nLesson: "
      target = last_sentence + "<|endoftext|>"
    - Filters out any sample where len(prompt_tokens) + len(target_tokens) > 256.
-   - Saves train_lesson.json (from TinyStories train) and val_lesson.json / test_lesson.json (from TinyStories val).
+   - Streams until target quotas are satisfied: 5,000 train, 500 val, 500 test.
 2. Pirate Dialect Transformation:
    - Word-boundary regex with case preservation: you->ye, my->me, friend->matey, etc.
-   - Appends " Arr!" to concluding sentences.
-   - Prepares plain causal language modeling corpus (no prompt/target split) up to 256 tokens.
+   - Appends ", Arr!" to concluding sentences.
+   - Streams until 5,000 train and 1,000 val causal LM samples are generated (tokens <= 256).
 """
 
 import json
@@ -28,7 +28,7 @@ SENTENCE_SPLIT_REGEX = re.compile(r"(?<=[.!?])\s+")
 
 # Regex anchored at sentence start identifying reflective lesson endings
 LESSON_TRIGGER_REGEX = re.compile(
-    r"^(?:The moral of the story is|Moral:|From that day on|He learned that|She learned that|They learned that|It is important to|Always remember to)\b",
+    r"^(?:The moral|Moral:|From that day|He learned|She learned|They learned|It is important|Always remember|Never forget|He realized|She realized|They realized|He understood|She understood|The lesson|That is why)\b",
     re.IGNORECASE,
 )
 
@@ -60,7 +60,6 @@ def rewrite_to_pirate(text: str) -> str:
     rewritten = text
     for pattern, replacement in PIRATE_RULES:
         rewritten = pattern.sub(replacement, rewritten)
-    # Append Arr! to the final sentence if not present
     rewritten = rewritten.strip()
     if rewritten and not rewritten.endswith("Arr!"):
         if rewritten[-1] in ".!?":
@@ -91,8 +90,10 @@ def extract_lesson_pair(text: str) -> Optional[Tuple[str, str]]:
 def run_data_preparation(
     data_dir: str = "data",
     tokenizer_path: str = "../modern_decoder_llm/checkpoints/tokenizer.json",
-    max_train_stories: int = 50000,
-    max_val_stories: int = 5000,
+    target_train_lessons: int = 5000,
+    target_val_lessons: int = 1000,
+    target_train_pirates: int = 5000,
+    target_val_pirates: int = 1000,
     max_seq_len: int = 256,
 ) -> Dict[str, int]:
     """Prepares datasets and reports Step 0 feasibility counts."""
@@ -116,9 +117,8 @@ def run_data_preparation(
     # --- Part A: Lesson Extraction ---
     print("\n--- Auditing & Extracting Lesson-Continuation Pairs ---")
     train_lesson_pairs = []
-    for i, item in enumerate(tqdm(ds_train, desc="Processing Train Stories", total=max_train_stories)):
-        if i >= max_train_stories:
-            break
+    pbar_train = tqdm(desc="Extracting Train Lessons", total=target_train_lessons)
+    for item in ds_train:
         pair = extract_lesson_pair(item["text"])
         if pair is not None:
             prompt, target = pair
@@ -131,11 +131,14 @@ def run_data_preparation(
                     "prompt_tokens": len(p_ids),
                     "target_tokens": len(t_ids),
                 })
+                pbar_train.update(1)
+                if len(train_lesson_pairs) >= target_train_lessons:
+                    break
+    pbar_train.close()
 
     val_lesson_pairs = []
-    for i, item in enumerate(tqdm(ds_val, desc="Processing Val Stories", total=max_val_stories)):
-        if i >= max_val_stories:
-            break
+    pbar_val = tqdm(desc="Extracting Val Lessons", total=target_val_lessons)
+    for item in ds_val:
         pair = extract_lesson_pair(item["text"])
         if pair is not None:
             prompt, target = pair
@@ -148,6 +151,10 @@ def run_data_preparation(
                     "prompt_tokens": len(p_ids),
                     "target_tokens": len(t_ids),
                 })
+                pbar_val.update(1)
+                if len(val_lesson_pairs) >= target_val_lessons:
+                    break
+    pbar_val.close()
 
     # Split val pairs into validation (500) and test (500)
     val_subset = val_lesson_pairs[:500]
@@ -157,9 +164,8 @@ def run_data_preparation(
     print("\n--- Generating Pirate Dialect Causal LM Dataset ---")
     ds_train_pirate = load_dataset("roneneldan/TinyStories", split="train", streaming=True)
     train_pirate_samples = []
-    for i, item in enumerate(tqdm(ds_train_pirate, desc="Rewriting Pirate Stories", total=len(train_lesson_pairs))):
-        if i >= len(train_lesson_pairs):
-            break
+    pbar_pirate_train = tqdm(desc="Rewriting Train Pirate", total=target_train_pirates)
+    for item in ds_train_pirate:
         pirate_text = rewrite_to_pirate(item["text"])
         tokens = tokenizer.encode(pirate_text + "<|endoftext|>")
         if len(tokens) <= max_seq_len:
@@ -167,12 +173,15 @@ def run_data_preparation(
                 "text": pirate_text,
                 "tokens": len(tokens),
             })
+            pbar_pirate_train.update(1)
+            if len(train_pirate_samples) >= target_train_pirates:
+                break
+    pbar_pirate_train.close()
 
     ds_val_pirate = load_dataset("roneneldan/TinyStories", split="validation", streaming=True)
     val_pirate_samples = []
-    for i, item in enumerate(tqdm(ds_val_pirate, desc="Rewriting Pirate Val Stories", total=1000)):
-        if i >= 1000:
-            break
+    pbar_pirate_val = tqdm(desc="Rewriting Val Pirate", total=target_val_pirates)
+    for item in ds_val_pirate:
         pirate_text = rewrite_to_pirate(item["text"])
         tokens = tokenizer.encode(pirate_text + "<|endoftext|>")
         if len(tokens) <= max_seq_len:
@@ -180,6 +189,10 @@ def run_data_preparation(
                 "text": pirate_text,
                 "tokens": len(tokens),
             })
+            pbar_pirate_val.update(1)
+            if len(val_pirate_samples) >= target_val_pirates:
+                break
+    pbar_pirate_val.close()
 
     # Save to JSON
     train_lesson_file = os.path.join(data_dir, "train_lesson.json")
@@ -218,4 +231,3 @@ def run_data_preparation(
 
 if __name__ == "__main__":
     run_data_preparation()
-
