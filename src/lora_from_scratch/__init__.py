@@ -2,8 +2,9 @@
 Package exports for lora_from_scratch.
 """
 
-__version__ = "0.1.0"
+from lora_from_scratch.lora_layer import LoRALinear, active_adapter_context
 
-
-def main() -> None:
-    print("lora_from_scratch: Low-Rank Adaptation from first principles in PyTorch.")
+__all__ = [
+    "LoRALinear",
+    "active_adapter_context",
+]
