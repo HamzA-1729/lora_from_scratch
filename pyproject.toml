@@ -1,0 +1,36 @@
+[project]
+name = "lora-from-scratch"
+version = "0.1.0"
+description = "Low-Rank Adaptation (LoRA) from scratch in PyTorch without PEFT"
+readme = "README.md"
+authors = [
+    { name = "Hamza Sajid", email = "hamzasajid.1729@gmail.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "datasets>=5.1.0",
+    "fastapi>=0.162.0",
+    "httpx>=0.28.1",
+    "modern-decoder-llm",
+    "numpy>=2.0.0",
+    "pyyaml>=6.0.3",
+    "torch>=2.14.1",
+    "tqdm>=4.70.1",
+    "uvicorn>=0.54.0",
+]
+
+[tool.uv.sources]
+modern-decoder-llm = { path = "../modern_decoder_llm", editable = true }
+
+[project.scripts]
+lora-from-scratch = "lora_from_scratch:main"
+
+[build-system]
+requires = ["uv_build>=0.12.17,<0.13.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.2.0",
+    "ruff>=0.17.3",
+]
