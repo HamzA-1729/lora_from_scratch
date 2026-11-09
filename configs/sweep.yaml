@@ -1,0 +1,33 @@
+# ==============================================================================
+# LoRA Rank Sensitivity Sweep Configuration
+# ==============================================================================
+
+# Ranks to sweep
+ranks: [2, 4, 8, 16, 32]
+
+# Scaling policy: alpha = 2 * r (constant effective update scale 2.0)
+alpha_factor: 2.0
+
+# Seeds to run (report individual min/max runs)
+seeds: [42, 1337]
+
+# Target module sets to compare
+target_sets:
+  qv_only:
+    - "q_proj"
+    - "v_proj"
+  all_linears:
+    - "q_proj"
+    - "k_proj"
+    - "v_proj"
+    - "o_proj"
+    - "w_gate"
+    - "w_up"
+    - "w_down"
+
+# Pinned evaluation splits
+evaluation:
+  val_size: 500
+  test_size: 500
+  plain_story_val_size: 500  # Forgetting check on pretraining distribution
+

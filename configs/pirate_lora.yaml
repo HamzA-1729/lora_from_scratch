@@ -1,0 +1,40 @@
+# ==============================================================================
+# LoRA Configuration: Pirate Dialect Domain Adaptation (Causal LM)
+# ==============================================================================
+
+seed: 42
+
+base_model:
+  checkpoint_path: "../modern_decoder_llm/checkpoints/best_model.pt"
+  tokenizer_path: "../modern_decoder_llm/checkpoints/tokenizer.json"
+  vocab_size: 4096
+  max_seq_len: 256
+  hidden_dim: 256
+  depth: 6
+  n_heads: 8
+  n_kv_heads: 2
+  head_dim: 32
+  ffn_dim: 768
+  rope_theta: 10000.0
+  norm_eps: 1.0e-6
+
+lora:
+  rank: 8
+  alpha: 16.0
+  dropout: 0.05
+  target_modules:
+    - "q_proj"
+    - "v_proj"
+
+training:
+  batch_size: 8
+  grad_accum_steps: 2
+  max_steps: 500
+  lr: 5.0e-4
+  weight_decay: 0.01
+  grad_clip: 1.0
+  eval_interval: 50
+  eval_steps: 25
+  train_data_path: "data/train_pirate.json"
+  val_data_path: "data/val_pirate.json"
+

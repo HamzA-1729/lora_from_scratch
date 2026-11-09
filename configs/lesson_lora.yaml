@@ -1,0 +1,43 @@
+# ==============================================================================
+# LoRA Configuration: Lesson-Sentence Continuation on TinyStories
+# ==============================================================================
+
+seed: 42
+
+# Base Model & Checkpoint
+base_model:
+  checkpoint_path: "../modern_decoder_llm/checkpoints/best_model.pt"
+  tokenizer_path: "../modern_decoder_llm/checkpoints/tokenizer.json"
+  vocab_size: 4096
+  max_seq_len: 256
+  hidden_dim: 256
+  depth: 6
+  n_heads: 8
+  n_kv_heads: 2
+  head_dim: 32
+  ffn_dim: 768
+  rope_theta: 10000.0
+  norm_eps: 1.0e-6
+
+# LoRA Hyperparameters
+lora:
+  rank: 8                   # Low-rank dimension r
+  alpha: 16.0               # Scaling numerator (alpha / r = 2.0)
+  dropout: 0.05             # LoRA input dropout
+  target_modules:           # Target projection matrices
+    - "q_proj"
+    - "v_proj"
+
+# Training Protocol
+training:
+  batch_size: 8
+  grad_accum_steps: 2       # Effective batch size = 16
+  max_steps: 500            # Total adaptation steps
+  lr: 5.0e-4                # Peak learning rate
+  weight_decay: 0.01
+  grad_clip: 1.0
+  eval_interval: 50
+  eval_steps: 25
+  train_data_path: "data/train_lesson.json"
+  val_data_path: "data/val_lesson.json"
+
