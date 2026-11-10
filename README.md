@@ -80,6 +80,52 @@ On our 5.57M `DecoderLLM` ($D=6$ layers, $d=256$, $H_Q=8, H_{KV}=2, d_k=32$, $d_
 
 ---
 
+## 📊 Empirical Benchmarks & Adaptation Findings
+
+### 1. Task Adaptation Convergence (500 Steps, $r=8, \alpha=16.0$)
+
+Both tasks adapt the pre-trained `DecoderLLM` ($5.57\text{M}$ base parameters, pretraining $\text{PPL}=5.70$) by updating only **39,936 parameters (0.711%)**:
+
+| Task | Target Modules | Trainable Parameters | Best Val Loss | Test Loss | Test Perplexity |
+| :--- | :---: | :---: | :---: | :---: | :---: |
+| **Lesson Continuation** | $W_q, W_v$ | **39,936 (0.711%)** | **1.4015** | **1.4663** | **4.33** |
+| **Pirate Dialect Domain** | $W_q, W_v$ | **39,936 (0.711%)** | **1.6104** | **1.6210** | **5.06** |
+
+### 2. Qualitative Generations (Prompt Masked Adaptation)
+
+* **Prompt:**
+  ```text
+  Story: A little rabbit found a huge carrot and decided to share it with his hungry friend.
+  Lesson: 
+  ```
+  **Adapter Output:**
+  ```text
+  From that day on, they were the best of friends and they always play
+  ```
+* **Prompt:**
+  ```text
+  Story: Timmy lied about breaking the flower pot, but felt so guilty he told the truth.
+  Lesson: 
+  ```
+  **Adapter Output:**
+  ```text
+  From that day on, Timmy learned that it's important to be careful and not b
+  ```
+
+### 3. Inference Latency & Merging Benchmark (CPU, Batch=1, SeqLen=64)
+
+| Serving Mode | Mean Latency (ms) | Overhead vs Base | Key Operational Characteristic |
+| :--- | :---: | :---: | :--- |
+| **Base Model** | **6.89 ms** | **0.0%** | Unadapted reference baseline |
+| **LoRA Unmerged (Dynamic)** | **7.46 ms** | **+8.2%** | Factorized delta $h = W_0 x + \frac{\alpha}{r} (x A^T) B^T$; required for multi-tenant serving |
+| **LoRA Merged In-Place** | **7.34 ms** | **+6.5%** | Folds weights into $W_0$; bypasses factorized matrix products |
+| **LoRA Merged & Unloaded** | **7.00 ms** | **+1.6%** | Converts back to standard pure `nn.Linear`; zero-overhead deployment |
+
+> [!NOTE]
+> `merge_and_unload()` completely reconstructs standard `nn.Linear` layers, eliminating all adapter overhead and matching pure base model execution latency while preserving adapted behavior.
+
+---
+
 ## 📁 Repository Structure
 
 ```text
