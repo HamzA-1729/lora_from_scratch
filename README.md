@@ -89,11 +89,11 @@ Both tasks adapt the pre-trained `DecoderLLM` ($5.57\text{M}$ base parameters, p
 | Task | Target Modules | Trainable Parameters | Best Val Loss | Test Loss | Test Perplexity |
 | :--- | :---: | :---: | :---: | :---: | :---: |
 | **Lesson Continuation** | $W_q, W_v$ | **39,936 (0.711%)** | **1.4015** | **1.4663** | **4.33** |
-| **Pirate Dialect Domain** | $W_q, W_v$ | **39,936 (0.711%)** | **1.6104** | **1.6210** | **5.06** |
+| **Pirate Dialect Domain** | $W_q, W_v$ | **39,936 (0.711%)** | **1.6104** | **1.7500** | **5.75** |
 
-### 2. Qualitative Generations (Prompt Masked Adaptation)
+### 2. Qualitative Generations & Dialect Shift
 
-* **Prompt:**
+* **Lesson Continuation Prompt:**
   ```text
   Story: A little rabbit found a huge carrot and decided to share it with his hungry friend.
   Lesson: 
@@ -102,7 +102,7 @@ Both tasks adapt the pre-trained `DecoderLLM` ($5.57\text{M}$ base parameters, p
   ```text
   From that day on, they were the best of friends and they always play
   ```
-* **Prompt:**
+* **Lesson Continuation Prompt:**
   ```text
   Story: Timmy lied about breaking the flower pot, but felt so guilty he told the truth.
   Lesson: 
@@ -110,6 +110,14 @@ Both tasks adapt the pre-trained `DecoderLLM` ($5.57\text{M}$ base parameters, p
   **Adapter Output:**
   ```text
   From that day on, Timmy learned that it's important to be careful and not b
+  ```
+* **Pirate Dialect Prompt:**
+  ```text
+  Hello my dear friend, where is the golden treasure
+  ```
+  **Adapter Output (7.4% Pirate Lexical Density vs 0.0% Base):**
+  ```text
+  Hello my dear friend, where is the golden treasure. Do ye want to play with yet?" asked the music. Then, they went to the doc
   ```
 
 ### 3. Inference Latency & Merging Benchmark (CPU, Batch=1, SeqLen=64)
